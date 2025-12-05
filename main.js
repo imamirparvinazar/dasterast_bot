@@ -19,20 +19,13 @@ async function sendToAI(textToProcess) {
           parts: [
             {
               text: `Remove all emojis from the text. You may only use 🛑 or 🔸.
-
 Remove any Telegram channel IDs.
-
 Add the following at the end of the text with one blank line above it:
 ✋ | @dasterast_co |
-
 Do not change the meaning of the text. Only fix spacing and spelling.
-
 Add a hashtag next to the word “urgent”, and use | after it.
-
 Make the title bold.
-
-Use Telegram Markdown (NOT MarkdownV2!).
-
+Use Telegram Markdown (not MarkdownV2!)
 TEXT: "${textToProcess}"`,
             },
           ],
@@ -54,6 +47,9 @@ const FINAL_CHANNEL_ID = "@dasterast_co";
 
 const bot = new Telegraf(BOT_TOKEN);
 
+// Map to store pending messages for confirmation
+const pendingMessages = new Map();
+
 bot.on("message", async (ctx) => {
   if (ctx.from.id !== USER1_ID) {
     return ctx.reply(
@@ -69,6 +65,8 @@ bot.on("message", async (ctx) => {
   const aiSummary = await sendToAI(rawText);
 
   const actionId = Date.now();
+  // Store the original message in pendingMessages
+  pendingMessages.set(actionId, originalMessage);
 
   const confirmationText =
     "🔔 *NEW APPROVAL REQUEST* 🔔\n\n" +
@@ -76,7 +74,7 @@ bot.on("message", async (ctx) => {
     aiSummary +
     "\n\n" +
     "---\n\n" +
-    "*Do you approve this content for:*" +
+    "*Do you approve this content for:* " +
     FINAL_CHANNEL_ID +
     "?";
 
@@ -88,13 +86,19 @@ bot.on("message", async (ctx) => {
   await ctx.telegram.sendMessage(USER2_ID, confirmationText, {
     parse_mode: "Markdown",
     reply_markup: inlineKeyboard.reply_markup,
-    reply_to_message_id: ctx.message.message_id,
   });
 });
 
 // Confirm
 bot.action(/confirm_(\d+)/, async (ctx) => {
-  const actionId = ctx.match[1];
+  const actionId = Number(ctx.match[1]);
+  const originalMessage = pendingMessages.get(actionId);
+
+  if (!originalMessage) {
+    return ctx.reply("Error: Could not find the original message.", {
+      parse_mode: "Markdown",
+    });
+  }
 
   await ctx.editMessageText("✨ Approved! Sending to the final channel...", {
     parse_mode: "Markdown",
@@ -103,19 +107,12 @@ bot.action(/confirm_(\d+)/, async (ctx) => {
     ]).reply_markup,
   });
 
-  const previewMessage = ctx.callbackQuery.message.reply_to_message;
-
-  if (!previewMessage) {
-    return ctx.reply("Error: Could not find the original message.", {
-      parse_mode: "Markdown",
-    });
-  }
-
   try {
+    // Use copyMessage if it's a user/channel message
     await ctx.telegram.copyMessage(
       FINAL_CHANNEL_ID,
-      previewMessage.chat.id,
-      previewMessage.message_id,
+      originalMessage.chat.id,
+      originalMessage.message_id,
     );
 
     await ctx.telegram.sendMessage(
@@ -123,6 +120,9 @@ bot.action(/confirm_(\d+)/, async (ctx) => {
       `✅ Message (ID: ${actionId}) successfully published to ${FINAL_CHANNEL_ID}.`,
       { parse_mode: "Markdown" },
     );
+
+    // Remove from pending
+    pendingMessages.delete(actionId);
   } catch (error) {
     console.error("FINAL SEND ERROR:", error.message);
     ctx.telegram.sendMessage(
