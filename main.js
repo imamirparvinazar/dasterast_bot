@@ -17,10 +17,38 @@ const bot = new Telegraf(BOT_TOKEN);
 // Map to store pending messages
 const pendingMessages = new Map();
 
-// Escape function for MarkdownV2
+// Escape function for MarkdownV2 (تمام کاراکترهای رزرو شده)
 function escapeMarkdownV2(text) {
   if (!text) return "";
-  return text.replace(/[_*\[\]()~`>#+\-=|{}.!]/g, "\\$&");
+  const charsToEscape = [
+    "_",
+    "*",
+    "[",
+    "]",
+    "(",
+    ")",
+    "~",
+    "`",
+    ">",
+    "#",
+    "+",
+    "-",
+    "=",
+    "|",
+    "{",
+    "}",
+    ".",
+    "!",
+  ];
+  let escapedText = "";
+  for (let i = 0; i < text.length; i++) {
+    if (charsToEscape.includes(text[i])) {
+      escapedText += "\\" + text[i];
+    } else {
+      escapedText += text[i];
+    }
+  }
+  return escapedText;
 }
 
 // Send text to AI for processing
@@ -117,6 +145,7 @@ bot.action(/confirm_(\d+)/, async (ctx) => {
   });
 
   try {
+    // Copy text/media from original message
     await ctx.telegram.copyMessage(
       FINAL_CHANNEL_ID,
       originalMessage.chat.id,
@@ -154,4 +183,6 @@ bot.action(/reject_(\d+)/, (ctx) => {
 });
 
 bot.launch();
-console.log("Bot running safely with MarkdownV2 and pending messages map.");
+console.log(
+  "Bot running safely with MarkdownV2 and full escape for all reserved characters.",
+);
