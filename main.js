@@ -7,6 +7,23 @@ dotenv.config();
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const USER1_ID = 7562837492; // Sender
+const USER2_ID = 7872550471; // Approver
+const FINAL_CHANNEL_ID = "@dasterast_co"; // Channel
+
+const bot = new Telegraf(BOT_TOKEN);
+
+// Map to store pending messages
+const pendingMessages = new Map();
+
+// Escape function for MarkdownV2
+function escapeMarkdownV2(text) {
+  if (!text) return "";
+  return text.replace(/[_*\[\]()~`>#+\-=|{}.!]/g, "\\$&");
+}
+
+// Send text to AI for processing
 async function sendToAI(textToProcess) {
   if (!textToProcess) return "No text provided for AI processing.";
 
@@ -25,7 +42,8 @@ Add the following at the end of the text with one blank line above it:
 Do not change the meaning of the text. Only fix spacing and spelling.
 Add a hashtag next to the word “urgent”, and use | after it.
 Make the title bold.
-Use Telegram Markdown (not MarkdownV2!)
+Use Telegram MarkdownV2!
+
 TEXT: "${textToProcess}"`,
             },
           ],
@@ -40,21 +58,12 @@ TEXT: "${textToProcess}"`,
   }
 }
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const USER1_ID = 7562837492;
-const USER2_ID = 7872550471;
-const FINAL_CHANNEL_ID = "@dasterast_co";
-
-const bot = new Telegraf(BOT_TOKEN);
-
-// Map to store pending messages for confirmation
-const pendingMessages = new Map();
-
+// Handle incoming messages from USER1
 bot.on("message", async (ctx) => {
   if (ctx.from.id !== USER1_ID) {
     return ctx.reply(
       "❌ Access denied. Only the designated client is allowed.",
-      { parse_mode: "Markdown" },
+      { parse_mode: "MarkdownV2" },
     );
   }
 
@@ -63,19 +72,19 @@ bot.on("message", async (ctx) => {
     originalMessage.text || originalMessage.caption || "No Text/Caption Found.";
 
   const aiSummary = await sendToAI(rawText);
+  const escapedSummary = escapeMarkdownV2(aiSummary);
 
   const actionId = Date.now();
-  // Store the original message in pendingMessages
   pendingMessages.set(actionId, originalMessage);
 
   const confirmationText =
     "🔔 *NEW APPROVAL REQUEST* 🔔\n\n" +
     "*Original Content Summary:*\n" +
-    aiSummary +
+    escapedSummary +
     "\n\n" +
     "---\n\n" +
     "*Do you approve this content for:* " +
-    FINAL_CHANNEL_ID +
+    escapeMarkdownV2(FINAL_CHANNEL_ID) +
     "?";
 
   const inlineKeyboard = Markup.inlineKeyboard([
@@ -84,31 +93,30 @@ bot.on("message", async (ctx) => {
   ]);
 
   await ctx.telegram.sendMessage(USER2_ID, confirmationText, {
-    parse_mode: "Markdown",
+    parse_mode: "MarkdownV2",
     reply_markup: inlineKeyboard.reply_markup,
   });
 });
 
-// Confirm
+// Handle confirmation
 bot.action(/confirm_(\d+)/, async (ctx) => {
   const actionId = Number(ctx.match[1]);
   const originalMessage = pendingMessages.get(actionId);
 
   if (!originalMessage) {
     return ctx.reply("Error: Could not find the original message.", {
-      parse_mode: "Markdown",
+      parse_mode: "MarkdownV2",
     });
   }
 
   await ctx.editMessageText("✨ Approved! Sending to the final channel...", {
-    parse_mode: "Markdown",
+    parse_mode: "MarkdownV2",
     reply_markup: Markup.inlineKeyboard([
       Markup.button.callback("⭐ Done", "done"),
     ]).reply_markup,
   });
 
   try {
-    // Use copyMessage if it's a user/channel message
     await ctx.telegram.copyMessage(
       FINAL_CHANNEL_ID,
       originalMessage.chat.id,
@@ -117,27 +125,28 @@ bot.action(/confirm_(\d+)/, async (ctx) => {
 
     await ctx.telegram.sendMessage(
       ctx.from.id,
-      `✅ Message (ID: ${actionId}) successfully published to ${FINAL_CHANNEL_ID}.`,
-      { parse_mode: "Markdown" },
+      escapeMarkdownV2(
+        `✅ Message (ID: ${actionId}) successfully published to ${FINAL_CHANNEL_ID}.`,
+      ),
+      { parse_mode: "MarkdownV2" },
     );
 
-    // Remove from pending
     pendingMessages.delete(actionId);
   } catch (error) {
     console.error("FINAL SEND ERROR:", error.message);
     ctx.telegram.sendMessage(
       ctx.from.id,
       "❌ FATAL ERROR: Failed to send to final channel.",
-      { parse_mode: "Markdown" },
+      { parse_mode: "MarkdownV2" },
     );
   }
 });
 
-// Reject
+// Handle rejection
 bot.action(/reject_(\d+)/, (ctx) => {
   const message = "❌ عملیات لغو شد. پیام ارسال نشد.";
   ctx.editMessageText(message, {
-    parse_mode: "Markdown",
+    parse_mode: "MarkdownV2",
     reply_markup: Markup.inlineKeyboard([
       Markup.button.callback("ℹ️ Fallback Info", "fallback_info"),
     ]).reply_markup,
@@ -145,4 +154,4 @@ bot.action(/reject_(\d+)/, (ctx) => {
 });
 
 bot.launch();
-console.log("Bot running with normal Telegram Markdown.");
+console.log("Bot running safely with MarkdownV2 and pending messages map.");
