@@ -29,7 +29,7 @@ async function sendToAI(textToProcess) {
           role: "user",
           parts: [
             {
-              text: `توی متن داده شده تمامی شکلک هایی که غیر از stop_sign  و small_orange_diamond هستند رو حذف کن. برای تیتر پیام ( اول پیام همیشه ) همون stop_sign و برای موارد لیست یا پاراگراف بعدی هم small_orange_diamond استفاده بکن. کلا آیدی کانال تلگرامی هایی که وجود دارن و حذف کن به همراه سمبول ها و ایموجی ها و شعار هاش. به آخر پیام با یه سطر فاصله ✋ | @dasterast_co |  اضافه بکن. کلمات متن رو تغییر نده فقط غلط های املایی و فاصله بندی رو درست کن.  : "${textToProcess}"`,
+              text: `توی متن داده شده تمامی شکلک هایی که غیر از  🛑stop_sign  و small_orange_diamond هستند رو حذف کن. برای تیتر پیام ( اول پیام همیشه ) همون stop_sign 🛑 و برای موارد لیست یا پاراگراف بعدی هم small_orange_diamond استفاده بکن. کلا آیدی کانال تلگرامی هایی که وجود دارن و حذف کن به همراه سمبول ها و ایموجی ها و شعار هاش. به آخر پیام با یه سطر فاصله ✋ | @dasterast_co |  اضافه بکن. کلمات متن رو تغییر نده فقط غلط های املایی و فاصله بندی رو درست کن. بعد از هشتگ فوری، اگر توی متن استانی ذکر شده بود، نام استان و در غیر این صورت خالی و بعد از این | بزار. : "${textToProcess}"`,
             },
           ],
         },
@@ -43,6 +43,7 @@ async function sendToAI(textToProcess) {
   }
 }
 
+// Handle incoming messages from USER1
 // Handle incoming messages from USER1
 bot.on("message", async (ctx) => {
   if (ctx.from.id !== USER1_ID) {
@@ -58,7 +59,12 @@ bot.on("message", async (ctx) => {
   const aiSummary = await sendToAI(rawText);
 
   const actionId = Date.now();
-  pendingMessages.set(actionId, originalMessage);
+
+  // Save BOTH original AND processed text
+  pendingMessages.set(actionId, {
+    originalMessage,
+    aiSummary,
+  });
 
   const confirmationText =
     "🔔 NEW APPROVAL REQUEST 🔔\n\n" +
@@ -80,15 +86,15 @@ bot.on("message", async (ctx) => {
   });
 });
 
-// Handle confirmation
-// Handle confirmation
 bot.action(/confirm_(\d+)/, async (ctx) => {
   const actionId = Number(ctx.match[1]);
-  const originalMessage = pendingMessages.get(actionId);
+  const pending = pendingMessages.get(actionId);
 
-  if (!originalMessage) {
+  if (!pending) {
     return ctx.reply("Error: Could not find the original message.");
   }
+
+  const { aiSummary } = pending;
 
   await ctx.editMessageText("✨ Approved! Sending to the final channel...", {
     reply_markup: Markup.inlineKeyboard([
@@ -97,13 +103,7 @@ bot.action(/confirm_(\d+)/, async (ctx) => {
   });
 
   try {
-    // Send AI-processed text to the final channel
-    const rawText =
-      originalMessage.text ||
-      originalMessage.caption ||
-      "No Text/Caption Found.";
-    const aiSummary = await sendToAI(rawText);
-
+    // Send previously-generated AI summary (NO second AI request)
     await ctx.telegram.sendMessage(FINAL_CHANNEL_ID, aiSummary);
 
     await ctx.telegram.sendMessage(
