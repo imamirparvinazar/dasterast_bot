@@ -95,8 +95,7 @@ bot.on("message", async (ctx) => {
   // Send the confirmation message immediately after the preview
   await ctx.telegram.sendMessage(USER2_ID, confirmationText, {
     parse_mode: "Markdown",
-    reply_markup: inlineKeyboard.reply_markup,
-    reply_to_message_id: previewMessage.message_id, // Link confirmation to the preview message
+    reply_markup: inlineKeyboard.reply_markup
   });
 });
 
