@@ -7,11 +7,6 @@ dotenv.config();
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
-// Escape for MarkdownV2
-function escapeV2(text) {
-  return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
-}
-
 async function sendToAI(textToProcess) {
   if (!textToProcess) return "No text provided for AI processing.";
 
@@ -36,7 +31,7 @@ Add a hashtag next to the word “urgent”, and use | after it.
 
 Make the title bold.
 
-Use Telegram MarkdownV2.
+Use Telegram Markdown (NOT MarkdownV2!).
 
 TEXT: "${textToProcess}"`,
             },
@@ -62,8 +57,8 @@ const bot = new Telegraf(BOT_TOKEN);
 bot.on("message", async (ctx) => {
   if (ctx.from.id !== USER1_ID) {
     return ctx.reply(
-      escapeV2("❌ Access denied. Only the designated client is allowed."),
-      { parse_mode: "MarkdownV2" },
+      "❌ Access denied. Only the designated client is allowed.",
+      { parse_mode: "Markdown" },
     );
   }
 
@@ -72,16 +67,18 @@ bot.on("message", async (ctx) => {
     originalMessage.text || originalMessage.caption || "No Text/Caption Found.";
 
   const aiSummary = await sendToAI(rawText);
-  const escapedSummary = escapeV2(aiSummary);
 
   const actionId = Date.now();
 
   const confirmationText =
-    `🔔 *NEW APPROVAL REQUEST* 🔔\n\n` +
-    `*Original Content Summary:*\n` +
-    `${escapedSummary}\n\n` +
-    `---\n\n` +
-    `*Do you approve this content for:* ${escapeV2(FINAL_CHANNEL_ID)}?`;
+    "🔔 *NEW APPROVAL REQUEST* 🔔\n\n" +
+    "*Original Content Summary:*\n" +
+    aiSummary +
+    "\n\n" +
+    "---\n\n" +
+    "*Do you approve this content for:*" +
+    FINAL_CHANNEL_ID +
+    "?";
 
   const inlineKeyboard = Markup.inlineKeyboard([
     Markup.button.callback("✅ تایید و ارسال", `confirm_${actionId}`),
@@ -89,7 +86,7 @@ bot.on("message", async (ctx) => {
   ]);
 
   await ctx.telegram.sendMessage(USER2_ID, confirmationText, {
-    parse_mode: "MarkdownV2",
+    parse_mode: "Markdown",
     reply_markup: inlineKeyboard.reply_markup,
   });
 });
@@ -98,21 +95,18 @@ bot.on("message", async (ctx) => {
 bot.action(/confirm_(\d+)/, async (ctx) => {
   const actionId = ctx.match[1];
 
-  await ctx.editMessageText(
-    escapeV2("✨ Approved! Sending to the final channel..."),
-    {
-      parse_mode: "MarkdownV2",
-      reply_markup: Markup.inlineKeyboard([
-        Markup.button.callback("⭐ Done", "done"),
-      ]).reply_markup,
-    },
-  );
+  await ctx.editMessageText("✨ Approved! Sending to the final channel...", {
+    parse_mode: "Markdown",
+    reply_markup: Markup.inlineKeyboard([
+      Markup.button.callback("⭐ Done", "done"),
+    ]).reply_markup,
+  });
 
   const previewMessage = ctx.callbackQuery.message.reply_to_message;
 
   if (!previewMessage) {
-    return ctx.reply(escapeV2("Error: Could not find the original message."), {
-      parse_mode: "MarkdownV2",
+    return ctx.reply("Error: Could not find the original message.", {
+      parse_mode: "Markdown",
     });
   }
 
@@ -125,26 +119,24 @@ bot.action(/confirm_(\d+)/, async (ctx) => {
 
     await ctx.telegram.sendMessage(
       ctx.from.id,
-      escapeV2(
-        `✅ Message (ID: ${actionId}) successfully published to ${FINAL_CHANNEL_ID}.`,
-      ),
-      { parse_mode: "MarkdownV2" },
+      `✅ Message (ID: ${actionId}) successfully published to ${FINAL_CHANNEL_ID}.`,
+      { parse_mode: "Markdown" },
     );
   } catch (error) {
     console.error("FINAL SEND ERROR:", error.message);
     ctx.telegram.sendMessage(
       ctx.from.id,
-      escapeV2("❌ FATAL ERROR: Failed to send to final channel."),
-      { parse_mode: "MarkdownV2" },
+      "❌ FATAL ERROR: Failed to send to final channel.",
+      { parse_mode: "Markdown" },
     );
   }
 });
 
 // Reject
 bot.action(/reject_(\d+)/, (ctx) => {
-  const message = escapeV2("❌ عملیات لغو شد. پیام ارسال نشد.");
+  const message = "❌ عملیات لغو شد. پیام ارسال نشد.";
   ctx.editMessageText(message, {
-    parse_mode: "MarkdownV2",
+    parse_mode: "Markdown",
     reply_markup: Markup.inlineKeyboard([
       Markup.button.callback("ℹ️ Fallback Info", "fallback_info"),
     ]).reply_markup,
@@ -152,4 +144,4 @@ bot.action(/reject_(\d+)/, (ctx) => {
 });
 
 bot.launch();
-console.log("Bot is running.");
+console.log("Bot running with normal Telegram Markdown.");
