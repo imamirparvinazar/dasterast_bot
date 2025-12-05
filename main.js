@@ -17,40 +17,6 @@ const bot = new Telegraf(BOT_TOKEN);
 // Map to store pending messages
 const pendingMessages = new Map();
 
-// Escape function for MarkdownV2 (تمام کاراکترهای رزرو شده)
-function escapeMarkdownV2(text) {
-  if (!text) return "";
-  const charsToEscape = [
-    "_",
-    "*",
-    "[",
-    "]",
-    "(",
-    ")",
-    "~",
-    "`",
-    ">",
-    "#",
-    "+",
-    "-",
-    "=",
-    "|",
-    "{",
-    "}",
-    ".",
-    "!",
-  ];
-  let escapedText = "";
-  for (let i = 0; i < text.length; i++) {
-    if (charsToEscape.includes(text[i])) {
-      escapedText += "\\" + text[i];
-    } else {
-      escapedText += text[i];
-    }
-  }
-  return escapedText;
-}
-
 // Send text to AI for processing
 async function sendToAI(textToProcess) {
   if (!textToProcess) return "No text provided for AI processing.";
@@ -70,7 +36,7 @@ Add the following at the end of the text with one blank line above it:
 Do not change the meaning of the text. Only fix spacing and spelling.
 Add a hashtag next to the word “urgent”, and use | after it.
 Make the title bold.
-Use Telegram MarkdownV2!
+Use plain text only.
 
 TEXT: "${textToProcess}"`,
             },
@@ -91,7 +57,6 @@ bot.on("message", async (ctx) => {
   if (ctx.from.id !== USER1_ID) {
     return ctx.reply(
       "❌ Access denied. Only the designated client is allowed.",
-      { parse_mode: "MarkdownV2" },
     );
   }
 
@@ -100,19 +65,18 @@ bot.on("message", async (ctx) => {
     originalMessage.text || originalMessage.caption || "No Text/Caption Found.";
 
   const aiSummary = await sendToAI(rawText);
-  const escapedSummary = escapeMarkdownV2(aiSummary);
 
   const actionId = Date.now();
   pendingMessages.set(actionId, originalMessage);
 
   const confirmationText =
-    "🔔 *NEW APPROVAL REQUEST* 🔔\n\n" +
-    "*Original Content Summary:*\n" +
-    escapedSummary +
+    "🔔 NEW APPROVAL REQUEST 🔔\n\n" +
+    "Original Content Summary:\n" +
+    aiSummary +
     "\n\n" +
     "---\n\n" +
-    "*Do you approve this content for:* " +
-    escapeMarkdownV2(FINAL_CHANNEL_ID) +
+    "Do you approve this content for: " +
+    FINAL_CHANNEL_ID +
     "?";
 
   const inlineKeyboard = Markup.inlineKeyboard([
@@ -121,7 +85,6 @@ bot.on("message", async (ctx) => {
   ]);
 
   await ctx.telegram.sendMessage(USER2_ID, confirmationText, {
-    parse_mode: "MarkdownV2",
     reply_markup: inlineKeyboard.reply_markup,
   });
 });
@@ -132,13 +95,10 @@ bot.action(/confirm_(\d+)/, async (ctx) => {
   const originalMessage = pendingMessages.get(actionId);
 
   if (!originalMessage) {
-    return ctx.reply("Error: Could not find the original message.", {
-      parse_mode: "MarkdownV2",
-    });
+    return ctx.reply("Error: Could not find the original message.");
   }
 
   await ctx.editMessageText("✨ Approved! Sending to the final channel...", {
-    parse_mode: "MarkdownV2",
     reply_markup: Markup.inlineKeyboard([
       Markup.button.callback("⭐ Done", "done"),
     ]).reply_markup,
@@ -154,10 +114,7 @@ bot.action(/confirm_(\d+)/, async (ctx) => {
 
     await ctx.telegram.sendMessage(
       ctx.from.id,
-      escapeMarkdownV2(
-        `✅ Message (ID: ${actionId}) successfully published to ${FINAL_CHANNEL_ID}.`,
-      ),
-      { parse_mode: "MarkdownV2" },
+      `✅ Message (ID: ${actionId}) successfully published to ${FINAL_CHANNEL_ID}.`,
     );
 
     pendingMessages.delete(actionId);
@@ -166,7 +123,6 @@ bot.action(/confirm_(\d+)/, async (ctx) => {
     ctx.telegram.sendMessage(
       ctx.from.id,
       "❌ FATAL ERROR: Failed to send to final channel.",
-      { parse_mode: "MarkdownV2" },
     );
   }
 });
@@ -175,7 +131,6 @@ bot.action(/confirm_(\d+)/, async (ctx) => {
 bot.action(/reject_(\d+)/, (ctx) => {
   const message = "❌ عملیات لغو شد. پیام ارسال نشد.";
   ctx.editMessageText(message, {
-    parse_mode: "MarkdownV2",
     reply_markup: Markup.inlineKeyboard([
       Markup.button.callback("ℹ️ Fallback Info", "fallback_info"),
     ]).reply_markup,
@@ -183,6 +138,4 @@ bot.action(/reject_(\d+)/, (ctx) => {
 });
 
 bot.launch();
-console.log(
-  "Bot running safely with MarkdownV2 and full escape for all reserved characters.",
-);
+console.log("Bot running with plain text only (no Markdown).");
