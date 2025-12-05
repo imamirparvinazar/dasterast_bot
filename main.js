@@ -88,6 +88,7 @@ bot.on("message", async (ctx) => {
   await ctx.telegram.sendMessage(USER2_ID, confirmationText, {
     parse_mode: "Markdown",
     reply_markup: inlineKeyboard.reply_markup,
+    reply_to_message_id: ctx.message.message_id,
   });
 });
 
