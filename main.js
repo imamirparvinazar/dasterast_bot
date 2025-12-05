@@ -29,16 +29,7 @@ async function sendToAI(textToProcess) {
           role: "user",
           parts: [
             {
-              text: `Remove all emojis from the text. You may only use 🛑 or 🔸.
-Remove any Telegram channel IDs.
-Add the following at the end of the text with one blank line above it:
-✋ | @dasterast_co |
-Do not change the meaning of the text. Only fix spacing and spelling.
-Add a hashtag next to the word “urgent”, and use | after it.
-Make the title bold.
-Use plain text only.
-
-TEXT: "${textToProcess}"`,
+              text: `توی متن داده شده تمامی شکلک هایی که غیر از stop_sign  و small_orange_diamond هستند رو حذف کن. برای تیتر پیام همون stop_sign و برای موارد لیست یا پاراگراف بعدی هم small_orange_diamond استفاده بکن. کلا آیدی کانال تلگرامی هایی که وجود دارن و حذف کن به همراه سمبول ها و ایموجی ها و شعار هاش. به آخر پیام ✋ | @dasterast_co |  اضافه بکن. کلمات متن رو تغییر نده فقط غلط های املایی و فاصله بندی رو درست کن. : "${textToProcess}"`,
             },
           ],
         },
