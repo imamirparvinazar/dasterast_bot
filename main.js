@@ -81,6 +81,7 @@ bot.on("message", async (ctx) => {
 });
 
 // Handle confirmation
+// Handle confirmation
 bot.action(/confirm_(\d+)/, async (ctx) => {
   const actionId = Number(ctx.match[1]);
   const originalMessage = pendingMessages.get(actionId);
@@ -96,12 +97,14 @@ bot.action(/confirm_(\d+)/, async (ctx) => {
   });
 
   try {
-    // Copy text/media from original message
-    await ctx.telegram.copyMessage(
-      FINAL_CHANNEL_ID,
-      originalMessage.chat.id,
-      originalMessage.message_id,
-    );
+    // Send AI-processed text to the final channel
+    const rawText =
+      originalMessage.text ||
+      originalMessage.caption ||
+      "No Text/Caption Found.";
+    const aiSummary = await sendToAI(rawText);
+
+    await ctx.telegram.sendMessage(FINAL_CHANNEL_ID, aiSummary);
 
     await ctx.telegram.sendMessage(
       ctx.from.id,
