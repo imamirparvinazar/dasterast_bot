@@ -1,7 +1,10 @@
 const { GoogleGenAI } = require("@google/genai");
 const { Telegraf, Markup } = require("telegraf");
+const dotenv = require("dotenv");
 
-const GEMINI_API_KEY = "AIzaSyAWpaJCXZYEKd2ISzMANhqH8SgIoZ49Wow";
+dotenv.config();
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
 async function sendToAI(textToProcess) {
@@ -41,7 +44,7 @@ async function sendToAI(textToProcess) {
   }
 }
 
-const BOT_TOKEN = "8258607872:AAFpbExZ8qkco6x2SO_mpr55XFRdy-q2y9U";
+const BOT_TOKEN = process.env.BOT_TOKEN;
 const USER1_ID = 7562837492;
 const USER2_ID = 7872550471;
 const FINAL_CHANNEL_ID = "@dasterast_co";
